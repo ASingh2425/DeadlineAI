@@ -31,7 +31,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
     isLoading 
   } = useAuth();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>('signup');
   const [signupStep, setSignupStep] = useState<1 | 2 | 3>(1);
   
   // Sign In / Sign Up fields
@@ -46,8 +46,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
   const [otpError, setOtpError] = useState(false);
 
   // Step 3 Personalization fields
-  const [department, setDepartment] = useState('Computer Science & Engineering');
-  const [targetRole, setTargetRole] = useState('Software Engineer & Quant');
+  const [department, setDepartment] = useState('');
+  const [targetRole, setTargetRole] = useState('');
 
   if (!isOpen) return null;
 
@@ -188,7 +188,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="anvesha@example.com"
+                      placeholder="your.email@gmail.com"
                       className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                     />
                   </div>
@@ -240,14 +240,14 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Anvesha Singh"
+                    placeholder="Enter your full name"
                     className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Email Address (For Reminders)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase">Your Target Email (Where Reminders Are Sent)</label>
                 <div className="relative mt-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
@@ -255,7 +255,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="anvesha@example.com"
+                    placeholder="9a.anveshasingh@gmail.com"
                     className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -267,9 +267,10 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
+                    required
                     value={university}
                     onChange={(e) => setUniversity(e.target.value)}
-                    placeholder="e.g. IIT Bombay / Tech Institute"
+                    placeholder="e.g. Manipal Institute of Technology"
                     className="w-full bg-slate-900 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
@@ -302,7 +303,7 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                 disabled={isLoading}
                 className="w-full mt-2 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition-all"
               >
-                Send SMTP Verification Code
+                Send Verification OTP Code
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -384,8 +385,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   required
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
-                  placeholder="e.g. Computer Science & Engineering"
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1"
+                  placeholder="e.g. Data Science & Engineering"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1 font-medium"
                 />
               </div>
 
@@ -396,8 +397,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                   required
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
-                  placeholder="e.g. Software Engineer / Data Scientist"
-                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1"
+                  placeholder="e.g. Software Engineer & Quant Analyst"
+                  className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1 font-medium"
                 />
               </div>
 

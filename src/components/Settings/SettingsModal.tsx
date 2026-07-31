@@ -31,7 +31,6 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
   const [university, setUniversity] = useState(user?.university || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [targetRole, setTargetRole] = useState(user?.targetRole || '');
-  const [gmailAddress] = useState(user?.preferences?.gmailAddress || user?.email || '');
   const [emailAlerts, setEmailAlerts] = useState(user?.preferences?.emailAlerts ?? true);
   const [pushAlerts, setPushAlerts] = useState(user?.preferences?.pushAlerts ?? true);
   
@@ -40,6 +39,8 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
   const [isSending, setIsSending] = useState(false);
 
   if (!isOpen || !user) return null;
+
+  const targetEmail = user.email;
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +53,7 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
         ...user.preferences,
         emailAlerts,
         pushAlerts,
-        gmailAddress
+        gmailAddress: targetEmail
       }
     });
     setSavedSuccess(true);
@@ -65,9 +66,9 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
     if (!testEvent) {
       testEvent = {
         id: 'evt_test_prod',
-        title: 'Registration Deadline - D E Shaw',
+        title: 'Registration Deadline - AQR Capital',
         type: 'Placement',
-        company: 'D E Shaw',
+        company: 'AQR Capital',
         description: 'Test reminder notification from your DeadlineAI Executive Assistant.',
         date: new Date().toISOString().split('T')[0],
         time: '10:00',
@@ -80,7 +81,6 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
     }
 
     setIsSending(true);
-    const targetEmail = gmailAddress || user.email;
     const res = await sendEventReminderViaSmtp(targetEmail, testEvent);
     setIsSending(false);
 
@@ -159,6 +159,7 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
                   type="text"
                   value={university}
                   onChange={(e) => setUniversity(e.target.value)}
+                  placeholder="e.g. Manipal Institute of Technology"
                   className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1"
                 />
               </div>
@@ -169,6 +170,7 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
                   type="text"
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="e.g. Data Science & Engineering"
                   className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1"
                 />
               </div>
@@ -179,6 +181,7 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
                   type="text"
                   value={targetRole}
                   onChange={(e) => setTargetRole(e.target.value)}
+                  placeholder="e.g. Software Engineer & Quant Analyst"
                   className="w-full bg-slate-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 mt-1"
                 />
               </div>
@@ -198,7 +201,7 @@ export const SettingsModal = ({ isOpen, onClose, events, setEvents }: SettingsMo
                   </div>
                   <div>
                     <span className="text-xs font-bold text-slate-200 block">Email Reminders</span>
-                    <span className="text-[11px] text-slate-400">Send alerts to {gmailAddress || user.email}</span>
+                    <span className="text-[11px] text-slate-400">Send alerts to <strong className="text-indigo-300">{targetEmail}</strong></span>
                   </div>
                 </div>
 

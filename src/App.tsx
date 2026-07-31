@@ -14,7 +14,6 @@ import { AuthModal } from './components/Auth/AuthModal';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import confetti from 'canvas-confetti';
 
-// Chronological sorting utility
 function sortEventsChronologically(items: NoticeEvent[]): NoticeEvent[] {
   return [...items].sort((a, b) => {
     const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
@@ -37,10 +36,16 @@ function MainAppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(!user);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<NoticeEvent | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     localStorage.setItem(userStorageKey, JSON.stringify(events));

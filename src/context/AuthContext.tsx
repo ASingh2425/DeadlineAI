@@ -15,31 +15,12 @@ interface AuthContextType extends AuthState {
   updateProfile: (updated: Partial<UserProfile>) => void;
 }
 
-const DEFAULT_VERIFIED_USER: UserProfile = {
-  id: 'usr_anvesha_default',
-  name: 'Anvesha',
-  email: 'anvesha@student.edu',
-  isEmailVerified: true,
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-  university: 'IIT Bombay / Tech Institute',
-  department: 'Computer Science & Engineering',
-  targetRole: 'Software Engineer & Quant Analyst',
-  preferences: {
-    emailAlerts: true,
-    pushAlerts: true,
-    gmailAddress: 'anvesha@student.edu',
-    defaultReminderSchedule: [1440, 360, 60],
-    theme: 'dark'
-  },
-  createdAt: new Date().toISOString()
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('deadlineai_user');
-    return saved ? JSON.parse(saved) : DEFAULT_VERIFIED_USER;
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -63,17 +44,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await new Promise(r => setTimeout(r, 600));
     setUser({
       id: `usr_google_${Date.now()}`,
-      name: 'Anvesha Singh',
-      email: 'anvesha.google@gmail.com',
+      name: 'Google User',
+      email: 'user.google@gmail.com',
       isEmailVerified: true,
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
-      university: 'National Institute of Technology',
-      department: 'Computer Science',
-      targetRole: 'Product Engineering',
+      university: '',
+      department: '',
+      targetRole: '',
       preferences: {
         emailAlerts: true,
         pushAlerts: true,
-        gmailAddress: 'anvesha.google@gmail.com',
+        gmailAddress: 'user.google@gmail.com',
         defaultReminderSchedule: [1440, 360, 60],
         theme: 'dark'
       },
@@ -87,16 +68,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await new Promise(r => setTimeout(r, 600));
     setUser({
       id: `usr_github_${Date.now()}`,
-      name: 'Anvesha Dev',
-      email: 'anvesha@github.com',
+      name: 'GitHub User',
+      email: 'user@github.com',
       isEmailVerified: true,
       avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
-      university: 'Tech University',
-      department: 'Software Engineering',
+      university: '',
+      department: '',
       preferences: {
         emailAlerts: true,
         pushAlerts: true,
-        gmailAddress: 'anvesha@github.com',
+        gmailAddress: 'user@github.com',
         defaultReminderSchedule: [1440, 360, 60],
         theme: 'dark'
       },
@@ -108,17 +89,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const loginWithEmail = async (email: string) => {
     setIsLoading(true);
     await new Promise(r => setTimeout(r, 500));
+    const cleanEmail = email.trim().toLowerCase();
     setUser({
       id: `usr_email_${Date.now()}`,
-      name: email.split('@')[0],
-      email: email,
+      name: cleanEmail.split('@')[0],
+      email: cleanEmail,
       isEmailVerified: true,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      university: 'University / Institute',
+      university: '',
+      department: '',
       preferences: {
         emailAlerts: true,
         pushAlerts: true,
-        gmailAddress: email,
+        gmailAddress: cleanEmail,
         defaultReminderSchedule: [1440, 360, 60],
         theme: 'dark'
       },
@@ -129,10 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const initiateSignup = async (name: string, email: string, _pass: string, university?: string): Promise<string> => {
     setIsLoading(true);
+    const cleanEmail = email.trim().toLowerCase();
     const otp = generateOtpCode();
-    setPendingSignup({ name, email, university, otpCode: otp });
+    setPendingSignup({ name, email: cleanEmail, university: university || '', otpCode: otp });
 
-    await sendVerificationOtpEmail(email, otp);
+    await sendVerificationOtpEmail(cleanEmail, otp);
     setIsLoading(false);
     return otp;
   };
@@ -147,19 +131,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     await new Promise(r => setTimeout(r, 400));
 
+    const cleanEmail = pendingSignup.email.trim().toLowerCase();
+
     setUser({
       id: `usr_verified_${Date.now()}`,
-      name: pendingSignup.name,
-      email: pendingSignup.email,
+      name: pendingSignup.name.trim(),
+      email: cleanEmail,
       isEmailVerified: true,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      university: pendingSignup.university || 'Tech University',
-      department: department || 'Computer Science',
-      targetRole: targetRole || 'Software Engineer',
+      university: pendingSignup.university ? pendingSignup.university.trim() : '',
+      department: department ? department.trim() : '',
+      targetRole: targetRole ? targetRole.trim() : '',
       preferences: {
         emailAlerts: true,
         pushAlerts: true,
-        gmailAddress: pendingSignup.email,
+        gmailAddress: cleanEmail,
         defaultReminderSchedule: [1440, 360, 60],
         theme: 'dark'
       },
@@ -173,11 +159,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('deadlineai_user');
   };
 
   const updateProfile = (updated: Partial<UserProfile>) => {
     if (!user) return;
-    setUser({ ...user, ...updated });
+    setUser(prev => {
+      if (!prev) return null;
+      const cleanEmail = updated.email || prev.email;
+      return {
+        ...prev,
+        ...updated,
+        email: cleanEmail,
+        preferences: {
+          ...prev.preferences,
+          ...(updated.preferences || {}),
+          gmailAddress: cleanEmail
+        }
+      };
+    });
   };
 
   return (
