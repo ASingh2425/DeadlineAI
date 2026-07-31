@@ -12,6 +12,7 @@ import { EventDetailModal } from './components/Modals/EventDetailModal';
 import { AIChatPanel } from './components/AIChat/AIChatPanel';
 import { AuthModal } from './components/Auth/AuthModal';
 import { SettingsModal } from './components/Settings/SettingsModal';
+import { fetchCloudEvents, saveCloudEvents } from './services/supabaseClient';
 import confetti from 'canvas-confetti';
 
 function sortEventsChronologically(items: NoticeEvent[]): NoticeEvent[] {
@@ -41,6 +42,17 @@ function MainAppContent() {
   const [selectedEvent, setSelectedEvent] = useState<NoticeEvent | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
 
+  // Sync with Supabase PostgreSQL cloud database if configured
+  useEffect(() => {
+    if (user?.id) {
+      fetchCloudEvents(user.id).then(cloudEvents => {
+        if (cloudEvents && cloudEvents.length > 0) {
+          setEvents(sortEventsChronologically(cloudEvents));
+        }
+      });
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (!user) {
       setIsAuthModalOpen(true);
@@ -49,7 +61,10 @@ function MainAppContent() {
 
   useEffect(() => {
     localStorage.setItem(userStorageKey, JSON.stringify(events));
-  }, [events, userStorageKey]);
+    if (user?.id) {
+      saveCloudEvents(user.id, events);
+    }
+  }, [events, userStorageKey, user?.id]);
 
   useEffect(() => {
     if (isDarkMode) {

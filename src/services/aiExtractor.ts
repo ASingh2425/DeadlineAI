@@ -17,6 +17,14 @@ const MONTH_MAP: { [key: string]: number } = {
   dec: 11, december: 11
 };
 
+// Get Gemini API Key from environment or localStorage
+export function getGeminiApiKey(): string | null {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+    return import.meta.env.VITE_GEMINI_API_KEY;
+  }
+  return localStorage.getItem('deadlineai_gemini_api_key');
+}
+
 // Clean text by stripping URLs, formatting markdown, and masking academic batch years (e.g. 2026-27)
 function sanitizeText(raw: string): string {
   let cleaned = raw.replace(/https?:\/\/[^\s\]\)\"]+/gi, ' '); // Strip URLs
@@ -27,7 +35,6 @@ function sanitizeText(raw: string): string {
 
 // Extract time e.g. "5:00 PM", "9 AM", "10 AM", "18:00", "@ 5:00 PM", "@10 AM"
 export function extractTimeFromString(str: string): string | undefined {
-  // Pattern 1: 12-hour format e.g. @ 5:00 PM, 9 AM, 10 AM, 5:00pm, 11:59 pm
   const time12Match = str.match(/(?:@\s*)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (time12Match) {
     let hour = parseInt(time12Match[1], 10);
@@ -40,7 +47,6 @@ export function extractTimeFromString(str: string): string | undefined {
     return `${hour.toString().padStart(2, '0')}:${min}`;
   }
 
-  // Pattern 2: 24-hour format e.g. 18:00, 14:30
   const time24Match = str.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
   if (time24Match) {
     return `${time24Match[1].padStart(2, '0')}:${time24Match[2]}`;
@@ -52,14 +58,13 @@ export function extractTimeFromString(str: string): string | undefined {
   return undefined;
 }
 
-// Strip standalone time phrases e.g. "9 AM", "5:00 PM", "@ 10 AM" so they don't block day numbers
 function stripTimePhrases(str: string): string {
   return str
     .replace(/(?:@\s*)?\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi, ' ')
     .replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, ' ');
 }
 
-// Ultra-accurate date & time parser
+// Ultra-accurate rule-based date & time parser (Fallback Engine)
 export function parseSmartDate(rawString: string | null | undefined, fallbackText?: string): { date: string; time?: string } {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -72,14 +77,11 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
   const lowerSnippet = rawSnippet.toLowerCase();
   const fullText = sanitizeText(fallbackText || rawSnippet).trim();
 
-  // Extract time from snippet first, then fallback to full text
   const extractedTime = extractTimeFromString(rawSnippet) || extractTimeFromString(fullText);
 
-  // Clean time phrases from snippet before running date regexes
   const dateOnlySnippet = stripTimePhrases(rawSnippet);
   const dateOnlyFullText = stripTimePhrases(fullText);
 
-  // 1. Check relative date keywords in snippet
   if (lowerSnippet.includes('today') || lowerSnippet.includes('tonight') || lowerSnippet.includes('this evening')) {
     let defaultTime = '18:00';
     if (lowerSnippet.includes('tonight')) defaultTime = '20:00';
@@ -106,12 +108,9 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     return { date: format(addDays(now, daysUntilFriday), 'yyyy-MM-dd'), time: extractedTime || '17:00' };
   }
 
-  // 2. Bulletproof Day & Month regex (supports ordinals like 1st, 2nd, 3rd, 6th, 9th) e.g. "6th August", "9th August", "1st August 2026"
   const dayMonthRegex = /\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s*[\s\.-]?\s*([a-zA-Z]{3,9})(?:\s*[\s\.-]?\s*(\d{2,4}))?/i;
   
-  // Try matching local line snippet first
   let match = dateOnlySnippet.match(dayMonthRegex);
-  // Fallback to full text if local line had no date
   if (!match) {
     match = dateOnlyFullText.match(dayMonthRegex);
   }
@@ -136,7 +135,6 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     }
   }
 
-  // 3. Reverse Month-Day string e.g. "August 6th", "August 9th", "July 30", "Aug 3"
   const monthDayRegex = /([a-zA-Z]{3,9})\s+\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)?(?:\s+(\d{2,4}))?/i;
   let revMatch = dateOnlySnippet.match(monthDayRegex);
   if (!revMatch) {
@@ -163,7 +161,6 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     }
   }
 
-  // 4. Explicit European/Indian Date: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY e.g., 30/07/2026, 05-08-2026
   let ddMmYyyyMatch = dateOnlySnippet.match(/\b([1-9]|[12]\d|3[01])[\/\.-]([1-9]|0[1-9]|1[0-2])[\/\.-](\d{4})\b/);
   if (!ddMmYyyyMatch) {
     ddMmYyyyMatch = dateOnlyFullText.match(/\b([1-9]|[12]\d|3[01])[\/\.-]([1-9]|0[1-9]|1[0-2])[\/\.-](\d{4})\b/);
@@ -182,11 +179,9 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     }
   }
 
-  // Fallback date: 2 days in future
   return { date: format(addDays(now, 2), 'yyyy-MM-dd'), time: extractedTime || '10:00' };
 }
 
-// Determine Priority Level
 export function determinePriority(title: string, category: EventCategory): PriorityLevel {
   const lower = title.toLowerCase();
 
@@ -227,7 +222,6 @@ export function determinePriority(title: string, category: EventCategory): Prior
   return 'Low';
 }
 
-// Determine Event Category
 export function determineCategory(title: string, text: string): EventCategory {
   const combined = (title + ' ' + text).toLowerCase();
 
@@ -259,17 +253,118 @@ export function determineCategory(title: string, text: string): EventCategory {
   return 'Academics';
 }
 
-// Ultra-accurate AI Multi-Event Extractor
+// REAL GOOGLE GEMINI 1.5 FLASH LLM EXTRACTION WITH STRUCTURED JSON OUTPUT
+export async function extractEventsWithGeminiLLM(rawText: string, apiKey: string): Promise<NoticeEvent[] | null> {
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const prompt = `
+You are an expert executive assistant AI. Analyze the following notice/email text and extract all distinct events, deadlines, tests, PPTs, interviews, assignments, or fee payments as a JSON array.
+Today's Date: ${todayStr} (Year: ${new Date().getFullYear()}).
+
+STRICT RULES:
+1. Do NOT merge distinct events (e.g. Registration, PPT, Online Test, Interview MUST be separate items).
+2. Extract exact date in YYYY-MM-DD format. (e.g., "1st August 2026" -> "${new Date().getFullYear()}-08-01", "6th August" -> "${new Date().getFullYear()}-08-06").
+3. Extract exact time in HH:mm 24-hr format (e.g., "5:00 PM" -> "17:00", "9 AM" -> "09:00").
+4. Priority must be one of: "Critical", "High", "Medium", "Low".
+5. Type (Category) must be one of: "Placement", "Internship", "Academics", "Exam", "Assignment", "Workshop", "Hackathon", "Fee Payment", "Club Event", "Meeting".
+6. Extract Company Name, Registration Link URL, and Eligibility Criteria if present.
+7. Include 3 actionable preparation checklist items for each event.
+
+Return ONLY a valid JSON array of objects matching this structure:
+[
+  {
+    "title": "Registration Deadline - Company Name",
+    "type": "Placement",
+    "company": "Company Name",
+    "date": "YYYY-MM-DD",
+    "time": "HH:mm",
+    "location": "Online / Venue",
+    "registrationLink": "URL",
+    "eligibility": "Eligibility criteria",
+    "priority": "Critical",
+    "checklist": ["Task 1", "Task 2", "Task 3"]
+  }
+]
+
+Notice Text:
+"""
+${rawText}
+"""
+`;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          response_mime_type: 'application/json',
+          temperature: 0.1
+        }
+      })
+    });
+
+    if (!res.ok) throw new Error(`Gemini API Error: ${res.statusText}`);
+
+    const jsonRes = await res.json();
+    const candidateText = jsonRes?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) return null;
+
+    const parsedArray = JSON.parse(candidateText);
+    if (!Array.isArray(parsedArray)) return null;
+
+    const noticeId = `notice_gemini_${Date.now()}`;
+    return parsedArray.map((item: any, idx: number) => ({
+      id: `evt_gemini_${Date.now()}_${idx}`,
+      title: item.title || 'Extracted Event',
+      type: item.type || 'Placement',
+      company: item.company,
+      description: `Extracted via Google Gemini 1.5 Flash LLM.\nCompany: ${item.company || 'N/A'}\nEligibility: ${item.eligibility || 'N/A'}`,
+      date: item.date || format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      time: item.time || '10:00',
+      timezone: 'IST (UTC+5:30)',
+      location: item.location || 'Online / Campus',
+      registrationLink: item.registrationLink,
+      eligibility: item.eligibility,
+      priority: item.priority || 'Critical',
+      status: 'pending',
+      reminderSchedule: [10080, 4320, 1440, 720, 360, 180, 60, 30, 10],
+      checklist: Array.isArray(item.checklist)
+        ? item.checklist.map((t: string, cIdx: number) => ({ id: `c_${cIdx}`, text: t, done: false }))
+        : [
+            { id: '1', text: 'Review notice instructions', done: false },
+            { id: '2', text: 'Complete registration', done: false }
+          ],
+      createdAt: new Date().toISOString(),
+      sourceNoticeId: noticeId,
+      sourceType: 'whatsapp'
+    }));
+  } catch (err) {
+    console.warn('[Gemini 1.5 Flash LLM] Error or Key unconfigured, using high-precision fallback engine:', err);
+    return null;
+  }
+}
+
+// Master Extractor: Uses Real Gemini 1.5 Flash LLM API when Key present, falls back to High-Precision Rule Engine
 export async function extractEventsFromNotice(
   rawText: string, 
   sourceType: 'whatsapp' | 'pdf' | 'screenshot' | 'email' | 'manual' = 'whatsapp'
 ): Promise<NoticeEvent[]> {
   await new Promise(resolve => setTimeout(resolve, 300));
 
+  const geminiApiKey = getGeminiApiKey();
+  if (geminiApiKey) {
+    const llmEvents = await extractEventsWithGeminiLLM(rawText, geminiApiKey);
+    if (llmEvents && llmEvents.length > 0) {
+      return llmEvents;
+    }
+  }
+
+  // High-Precision Rule Engine Fallback
   const events: NoticeEvent[] = [];
   const noticeId = `notice_${Date.now()}`;
 
-  // Extract Company Name
   let companyName: string | undefined = undefined;
   const companyMatch = rawText.match(/(?:Company|Organization|Firm|Recruiter|Client):\s*([^\n\r,]+)/i);
   if (companyMatch) {
@@ -290,7 +385,6 @@ export async function extractEventsFromNotice(
     companyName = 'Uber';
   }
 
-  // Extract URLs
   let regLink: string | undefined = undefined;
   const urlMatches = rawText.match(/(https?:\/\/[^\s\]\)\"]+)/gi);
   if (urlMatches && urlMatches.length > 0) {
@@ -298,19 +392,16 @@ export async function extractEventsFromNotice(
     regLink = regForm || urlMatches[0];
   }
 
-  // Extract Eligibility if specified
   let eligibilityStr: string | undefined = undefined;
   const eligMatch = rawText.match(/(?:Eligibility|Eligible|Criteria):\s*([^\n\r]+)/i);
   if (eligMatch) {
     eligibilityStr = eligMatch[1].trim();
   }
 
-  // Clean raw text
   const cleanRawText = sanitizeText(rawText);
   const lines = cleanRawText.split('\n').map(l => l.trim()).filter(Boolean);
   const detectedEvents: { title: string; lineContext: string; venue?: string }[] = [];
 
-  // Scan cleaned lines for events and extract explicit line contexts
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
@@ -335,12 +426,10 @@ export async function extractEventsFromNotice(
     }
   }
 
-  // Deduplicate detected events by title
   const uniqueDetected = Array.from(new Map(detectedEvents.map(item => [item.title, item])).values());
 
   if (uniqueDetected.length > 0) {
     uniqueDetected.forEach((sec, idx) => {
-      // Parse dates strictly from the event's specific line context
       const parsed = parseSmartDate(sec.lineContext, cleanRawText);
       const cat = determineCategory(sec.title, rawText);
       const prio = determinePriority(sec.title, cat);
@@ -371,7 +460,6 @@ export async function extractEventsFromNotice(
       });
     });
   } else {
-    // Single event fallback extraction
     const parsed = parseSmartDate(cleanRawText);
     const firstLine = lines[0] || 'Notice Reminder';
     const cat = determineCategory(firstLine, rawText);
