@@ -1,0 +1,18 @@
+{
+  "short_name": "DeadlineAI",
+  "name": "DeadlineAI – AI Powered Personal Deadline & Reminder Assistant",
+  "description": "Personal AI executive secretary for students and professionals. Automatically extracts events, deadlines, interviews, and exams from WhatsApp messages, PDFs, and screenshots with multi-channel reminders.",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090d16",
+  "theme_color": "#3b82f6",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["productivity", "utilities", "education", "lifestyle"]
+}
