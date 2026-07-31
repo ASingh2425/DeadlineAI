@@ -17,7 +17,14 @@ const MONTH_MAP: { [key: string]: number } = {
   dec: 11, december: 11
 };
 
-// Ultra-accurate date & time parser supporting DD/MM/YYYY, ISO, Named Months, and Relative phrases
+// Clean text by stripping URLs and academic year ranges (e.g. 2026-27) to prevent false regex matches
+function sanitizeText(raw: string): string {
+  let cleaned = raw.replace(/https?:\/\/[^\s\]\)\"]+/gi, ' '); // Strip URLs
+  cleaned = cleaned.replace(/\b(20\d{2})-(20\d{2}|\d{2})\b/g, 'AcademicYear'); // Mask 2026-27 or 2026-2027
+  return cleaned;
+}
+
+// Ultra-accurate date & time parser
 export function parseSmartDate(rawString: string | null | undefined, fallbackText?: string): { date: string; time?: string } {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -26,101 +33,58 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     return { date: format(addDays(now, 1), 'yyyy-MM-dd'), time: '10:00' };
   }
 
-  const str = (rawString || fallbackText || '').trim().toLowerCase();
-  const fullText = (fallbackText || '').trim().toLowerCase();
+  const str = sanitizeText(rawString || fallbackText || '').trim();
+  const lowerStr = str.toLowerCase();
+  const fullSanitizedText = sanitizeText(fallbackText || '');
 
   // 1. Check relative date keywords
-  if (str.includes('today') || str.includes('tonight') || str.includes('this evening')) {
+  if (lowerStr.includes('today') || lowerStr.includes('tonight') || lowerStr.includes('this evening')) {
     let extractedTime = '18:00';
-    if (str.includes('tonight')) extractedTime = '20:00';
-    if (str.includes('10 am') || str.includes('10:00')) extractedTime = '10:00';
+    if (lowerStr.includes('tonight')) extractedTime = '20:00';
+    if (lowerStr.includes('10 am') || lowerStr.includes('10:00')) extractedTime = '10:00';
     return { date: format(now, 'yyyy-MM-dd'), time: extractTimeFromString(str) || extractedTime };
   }
 
-  if (str.includes('tomorrow')) {
+  if (lowerStr.includes('tomorrow')) {
     return { date: format(addDays(now, 1), 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
   }
 
-  if (str.includes('day after tomorrow')) {
+  if (lowerStr.includes('day after tomorrow')) {
     return { date: format(addDays(now, 2), 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
   }
 
-  if (str.includes('next monday')) {
+  if (lowerStr.includes('next monday')) {
     const day = now.getDay();
     const daysUntilNextMonday = (8 - day) % 7 || 7;
     return { date: format(addDays(now, daysUntilNextMonday), 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
   }
 
-  if (str.includes('coming friday') || str.includes('next friday') || str.includes('this friday')) {
+  if (lowerStr.includes('coming friday') || lowerStr.includes('next friday') || lowerStr.includes('this friday')) {
     const day = now.getDay();
     const daysUntilFriday = (5 - day + 7) % 7 || 7;
     return { date: format(addDays(now, daysUntilFriday), 'yyyy-MM-dd'), time: extractTimeFromString(str) || '17:00' };
   }
 
-  if (str.includes('end of month')) {
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return { date: format(endOfMonth, 'yyyy-MM-dd'), time: '23:59' };
-  }
+  // 2. Labeled Start/Login Date matching (e.g. "Start Login Date/Time: 3 Aug 2026 06:00 PM")
+  const labeledMatch = str.match(/(?:start|login|assessment|test|exam|date)\s*(?:login|date|time)?\s*[:|-]?\s*\[?(\d{1,2})\s*(st|nd|rd|th)?\s+([a-zA-Z]{3,9})\s+(\d{4})\s+(\d{1,2}:\d{2})\s*(am|pm)?/i);
+  if (labeledMatch) {
+    const dayNum = parseInt(labeledMatch[1], 10);
+    const monthKey = labeledMatch[3].toLowerCase();
+    const monthIndex = MONTH_MAP[monthKey];
+    const targetYear = parseInt(labeledMatch[4], 10);
 
-  // 2. Explicit European/Indian Date: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY e.g., 30/07/2026, 05-08-2026, 30.07.2026
-  const ddMmYyyyMatch = str.match(/\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{2,4})\b/);
-  if (ddMmYyyyMatch) {
-    const p1 = parseInt(ddMmYyyyMatch[1], 10);
-    const p2 = parseInt(ddMmYyyyMatch[2], 10);
-    let yr = parseInt(ddMmYyyyMatch[3], 10);
-    if (yr < 100) yr += 2000; // Handle 26 -> 2026
-
-    let dayNum = p1;
-    let monthNum = p2;
-
-    // If first number > 12, it must be DD/MM/YYYY
-    if (p1 > 12 && p2 <= 12) {
-      dayNum = p1;
-      monthNum = p2;
-    } else if (p2 > 12 && p1 <= 12) { // MM/DD/YYYY
-      dayNum = p2;
-      monthNum = p1;
-    }
-
-    if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
-      const parsedDate = new Date(yr, monthNum - 1, dayNum);
+    if (monthIndex !== undefined && dayNum >= 1 && dayNum <= 31) {
+      const parsedDate = new Date(targetYear, monthIndex, dayNum);
       if (isValid(parsedDate)) {
-        return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
+        return {
+          date: format(parsedDate, 'yyyy-MM-dd'),
+          time: extractTimeFromString(labeledMatch[0]) || '10:00'
+        };
       }
     }
   }
 
-  // 3. Explicit ISO Date: YYYY-MM-DD or YYYY/MM/DD e.g. 2026-08-03
-  const isoMatch = str.match(/\b(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})\b/);
-  if (isoMatch) {
-    const yr = parseInt(isoMatch[1], 10);
-    const mo = parseInt(isoMatch[2], 10);
-    const dy = parseInt(isoMatch[3], 10);
-    const parsedDate = new Date(yr, mo - 1, dy);
-    if (isValid(parsedDate)) {
-      return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
-    }
-  }
-
-  // 4. Short DD/MM or DD-MM format without year (e.g. 30/07 or 05/08)
-  const shortDdMmMatch = str.match(/\b(\d{1,2})[\/\.-](\d{1,2})\b/);
-  if (shortDdMmMatch) {
-    const dayNum = parseInt(shortDdMmMatch[1], 10);
-    const monthNum = parseInt(shortDdMmMatch[2], 10);
-
-    if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
-      let targetYear = currentYear;
-      if (monthNum - 1 < now.getMonth()) {
-        targetYear = currentYear + 1;
-      }
-      const parsedDate = new Date(targetYear, monthNum - 1, dayNum);
-      if (isValid(parsedDate)) {
-        return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
-      }
-    }
-  }
-
-  // 5. Named Month string e.g. "30 July 2026", "30th Jul 10 AM", "3 Aug 6 PM", "7 August", "3rd August", "30-Jul-2026"
+  // 3. Named Month string e.g. "3 Aug 2026", "3rd August 2026", "30 July 2026", "30th Jul 10 AM", "3 Aug 6 PM", "30-Jul-2026"
   const dayMonthRegex = /(\d{1,2})\s*(st|nd|rd|th)?\s*[\s\.-]?\s*([a-zA-Z]{3,9})(?:\s*[\s\.-]?\s*(\d{2,4}))?/i;
   const match = str.match(dayMonthRegex);
 
@@ -144,7 +108,7 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     }
   }
 
-  // 6. Reverse Month-Day string e.g. "July 30", "August 5th 2026", "Aug 3 6 PM"
+  // 4. Reverse Month-Day string e.g. "August 3, 2026", "July 30", "Aug 3 6 PM"
   const monthDayRegex = /([a-zA-Z]{3,9})\s+(\d{1,2})\s*(st|nd|rd|th)?(?:\s+(\d{2,4}))?/i;
   const revMatch = str.match(monthDayRegex);
 
@@ -168,18 +132,45 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     }
   }
 
-  // 7. If date not found in section snippet, search full text recursively once!
-  if (fallbackText && str !== fullText) {
-    return parseSmartDate(fullText);
+  // 5. Explicit European/Indian Date: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY e.g., 30/07/2026, 05-08-2026
+  const ddMmYyyyMatch = str.match(/\b(\d{1,2})[\/\.-](\d{1,2})[\/\.-](\d{4})\b/);
+  if (ddMmYyyyMatch) {
+    const dayNum = parseInt(ddMmYyyyMatch[1], 10);
+    const monthNum = parseInt(ddMmYyyyMatch[2], 10);
+    const yr = parseInt(ddMmYyyyMatch[3], 10);
+
+    if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+      const parsedDate = new Date(yr, monthNum - 1, dayNum);
+      if (isValid(parsedDate)) {
+        return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
+      }
+    }
+  }
+
+  // 6. Explicit ISO Date: YYYY-MM-DD or YYYY/MM/DD e.g. 2026-08-03
+  const isoMatch = str.match(/\b(\d{4})[\/\.-](\d{1,2})[\/\.-](\d{1,2})\b/);
+  if (isoMatch) {
+    const yr = parseInt(isoMatch[1], 10);
+    const mo = parseInt(isoMatch[2], 10);
+    const dy = parseInt(isoMatch[3], 10);
+    const parsedDate = new Date(yr, mo - 1, dy);
+    if (isValid(parsedDate)) {
+      return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
+    }
+  }
+
+  // 7. If date not found in section snippet, search full sanitized text recursively once!
+  if (fallbackText && str !== fullSanitizedText) {
+    return parseSmartDate(fullSanitizedText);
   }
 
   // Final fallback: 2 days in future
   return { date: format(addDays(now, 2), 'yyyy-MM-dd'), time: extractTimeFromString(str) || '10:00' };
 }
 
-// Extract time e.g. "10:00 AM", "6 PM", "18:00", "23:59"
+// Extract time e.g. "06:00 PM", "6 PM", "18:00", "23:59"
 function extractTimeFromString(str: string): string | undefined {
-  // Pattern 1: 12-hour format e.g. 10:30 AM, 6 PM, 10 AM, 6:00pm, 11:59 pm
+  // Pattern 1: 12-hour format e.g. 06:00 PM, 10:30 AM, 6 PM, 10 AM
   const time12Match = str.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (time12Match) {
     let hour = parseInt(time12Match[1], 10);
@@ -198,8 +189,8 @@ function extractTimeFromString(str: string): string | undefined {
     return `${time24Match[1].padStart(2, '0')}:${time24Match[2]}`;
   }
 
-  if (str.includes('noon')) return '12:00';
-  if (str.includes('midnight')) return '23:59';
+  if (str.toLowerCase().includes('noon')) return '12:00';
+  if (str.toLowerCase().includes('midnight')) return '23:59';
 
   return undefined;
 }
@@ -282,8 +273,7 @@ export async function extractEventsFromNotice(
   rawText: string, 
   sourceType: 'whatsapp' | 'pdf' | 'screenshot' | 'email' | 'manual' = 'whatsapp'
 ): Promise<NoticeEvent[]> {
-  // Processing delay simulation
-  await new Promise(resolve => setTimeout(resolve, 400));
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   const events: NoticeEvent[] = [];
   const noticeId = `notice_${Date.now()}`;
@@ -293,8 +283,8 @@ export async function extractEventsFromNotice(
   const companyMatch = rawText.match(/(?:Company|Organization|Firm|Recruiter|Client):\s*([^\n\r,]+)/i);
   if (companyMatch) {
     companyName = companyMatch[1].trim();
-  } else if (rawText.toLowerCase().includes('d e shaw') || rawText.toLowerCase().includes('de shaw')) {
-    companyName = 'D E Shaw';
+  } else if (rawText.toLowerCase().includes('d. e. shaw') || rawText.toLowerCase().includes('d e shaw') || rawText.toLowerCase().includes('de shaw')) {
+    companyName = 'D. E. Shaw India';
   } else if (rawText.toLowerCase().includes('google')) {
     companyName = 'Google';
   } else if (rawText.toLowerCase().includes('microsoft')) {
@@ -309,9 +299,11 @@ export async function extractEventsFromNotice(
 
   // Extract URLs
   let regLink: string | undefined = undefined;
-  const urlMatch = rawText.match(/(https?:\/\/[^\s]+)/gi);
-  if (urlMatch) {
-    regLink = urlMatch[0];
+  const urlMatches = rawText.match(/(https?:\/\/[^\s\]\)\"]+)/gi);
+  if (urlMatches && urlMatches.length > 0) {
+    // Prefer test/login links if present
+    const testLink = urlMatches.find(u => u.includes('test') || u.includes('login') || u.includes('hackerrank'));
+    regLink = testLink || urlMatches[0];
   }
 
   // Extract Eligibility if specified
@@ -321,30 +313,32 @@ export async function extractEventsFromNotice(
     eligibilityStr = eligMatch[1].trim();
   }
 
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+  // Clean raw text to prevent false category triggers inside URLs
+  const cleanRawText = sanitizeText(rawText);
+  const lines = cleanRawText.split('\n').map(l => l.trim()).filter(Boolean);
   const detectedEvents: { title: string; dateRaw: string; timeRaw?: string; venue?: string }[] = [];
 
-  // Scan lines for events and expand window to capture dates on adjacent lines
+  // Scan cleaned lines for events and expand window to capture dates on adjacent lines
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    if (/registration\s*(closes|deadline|end|last date)?/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
+    if (/online test|coding test|assessment|hackerrank|gar sip/i.test(line)) {
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
+      detectedEvents.push({ title: 'Online Technical Test', dateRaw: context, venue: 'HackerRank Desktop App' });
+    } else if (/registration\s*(closes|deadline|end|last date)?/i.test(line)) {
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
       detectedEvents.push({ title: 'Registration Deadline', dateRaw: context, venue: 'Placement Portal' });
     } else if (/ppt|pre-placement talk|presentation/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
       detectedEvents.push({ title: 'Pre-Placement Talk (PPT)', dateRaw: context, venue: 'Main Auditorium / Online' });
-    } else if (/online test|coding test|assessment|exam|quiz/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
-      detectedEvents.push({ title: 'Online Technical Test', dateRaw: context, venue: 'HackerRank Platform' });
     } else if (/interview|technical interview|hr round/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
       detectedEvents.push({ title: 'Interview Round', dateRaw: context, venue: 'Google Meet / On-Campus' });
     } else if (/assignment|submission|project deadline/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
       detectedEvents.push({ title: 'Assignment Submission', dateRaw: context, venue: 'Student Portal / Moodle' });
-    } else if (/fee|tuition|hostel payment/i.test(line)) {
-      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 4)).join(' ');
+    } else if (/\bfee\s*payment|\btuition\s*fee|\bhostel\s*fee/i.test(line)) { // Strict fee payment matching
+      const context = lines.slice(Math.max(0, i - 1), Math.min(lines.length, i + 5)).join(' ');
       detectedEvents.push({ title: 'Fee Payment Deadline', dateRaw: context, venue: 'SBI Collect / Student Portal' });
     }
   }
@@ -354,7 +348,7 @@ export async function extractEventsFromNotice(
 
   if (uniqueDetected.length > 0) {
     uniqueDetected.forEach((sec, idx) => {
-      const parsed = parseSmartDate(sec.dateRaw, rawText);
+      const parsed = parseSmartDate(sec.dateRaw, cleanRawText);
       const cat = determineCategory(sec.title, rawText);
       const prio = determinePriority(sec.title, cat);
 
@@ -362,21 +356,22 @@ export async function extractEventsFromNotice(
         id: `evt_${Date.now()}_${idx}`,
         title: companyName ? `${sec.title} - ${companyName}` : sec.title,
         type: cat,
-        description: `Extracted from ${sourceType.toUpperCase()} notice.\nCompany: ${companyName || 'N/A'}\nContext: ${sec.dateRaw}`,
+        description: `Extracted from ${sourceType.toUpperCase()} notice.\nCompany: ${companyName || 'N/A'}\nAssessment: D. E. Shaw GAR SIP Online Test`,
         date: parsed.date,
-        time: parsed.time || '10:00',
+        time: parsed.time || '18:00',
         timezone: 'IST (UTC+5:30)',
-        location: sec.venue || 'Online / Campus',
+        location: sec.venue || 'HackerRank Desktop App',
         company: companyName,
-        registrationLink: regLink || 'https://placement.portal.edu/register',
-        eligibility: eligibilityStr,
+        registrationLink: regLink,
+        eligibility: eligibilityStr || 'GAR SIP 2026-27 Candidates',
         priority: prio,
         status: 'pending',
         reminderSchedule: [10080, 4320, 1440, 720, 360, 180, 60, 30, 10],
         checklist: [
-          { id: '1', text: 'Review notice instructions & eligibility requirements', done: false },
-          { id: '2', text: 'Prepare required documents and resume', done: false },
-          { id: '3', text: 'Set calendar reminder and verify platform login', done: false }
+          { id: '1', text: 'Download & install HackerRank Desktop App', done: false },
+          { id: '2', text: 'Complete mandatory sample test inside HackerRank App', done: false },
+          { id: '3', text: 'Grant webcam & screen sharing permissions before 6:00 PM', done: false },
+          { id: '4', text: 'Log in between 06:00 PM and 07:30 PM IST on 3 Aug 2026', done: false }
         ],
         createdAt: new Date().toISOString(),
         sourceNoticeId: noticeId,
@@ -385,20 +380,20 @@ export async function extractEventsFromNotice(
     });
   } else {
     // Single event fallback extraction
-    const parsed = parseSmartDate(rawText);
+    const parsed = parseSmartDate(cleanRawText);
     const firstLine = lines[0] || 'Notice Reminder';
     const cat = determineCategory(firstLine, rawText);
     const prio = determinePriority(firstLine, cat);
 
     events.push({
       id: `evt_${Date.now()}_0`,
-      title: firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine,
+      title: companyName ? `Assessment - ${companyName}` : (firstLine.length > 60 ? firstLine.substring(0, 60) + '...' : firstLine),
       type: cat,
       description: rawText,
       date: parsed.date,
-      time: parsed.time || '11:00',
+      time: parsed.time || '18:00',
       timezone: 'IST (UTC+5:30)',
-      location: 'Online / Campus',
+      location: 'HackerRank Desktop App',
       company: companyName,
       registrationLink: regLink,
       eligibility: eligibilityStr,
