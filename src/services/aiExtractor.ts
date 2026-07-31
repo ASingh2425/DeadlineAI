@@ -77,6 +77,7 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
 
   // Clean time phrases from snippet before running date regexes
   const dateOnlySnippet = stripTimePhrases(rawSnippet);
+  const dateOnlyFullText = stripTimePhrases(fullText);
 
   // 1. Check relative date keywords in snippet
   if (lowerSnippet.includes('today') || lowerSnippet.includes('tonight') || lowerSnippet.includes('this evening')) {
@@ -105,19 +106,25 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
     return { date: format(addDays(now, daysUntilFriday), 'yyyy-MM-dd'), time: extractedTime || '17:00' };
   }
 
-  // 2. Strict Standalone Day & Month regex e.g. "6th August", "9th August", "1st August 2026", "30 July 2026", "3 Aug"
-  const dayMonthRegex = /\b([1-9]|[12]\d|3[01])\b\s*(st|nd|rd|th)?\s*[\s\.-]?\s*([a-zA-Z]{3,9})(?:\s*[\s\.-]?\s*(\d{2,4}))?/i;
-  const match = dateOnlySnippet.match(dayMonthRegex);
+  // 2. Bulletproof Day & Month regex (supports ordinals like 1st, 2nd, 3rd, 6th, 9th) e.g. "6th August", "9th August", "1st August 2026"
+  const dayMonthRegex = /\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s*[\s\.-]?\s*([a-zA-Z]{3,9})(?:\s*[\s\.-]?\s*(\d{2,4}))?/i;
+  
+  // Try matching local line snippet first
+  let match = dateOnlySnippet.match(dayMonthRegex);
+  // Fallback to full text if local line had no date
+  if (!match) {
+    match = dateOnlyFullText.match(dayMonthRegex);
+  }
 
   if (match) {
     const dayNum = parseInt(match[1], 10);
-    const monthKey = match[3].toLowerCase();
+    const monthKey = match[2].toLowerCase();
     const monthIndex = MONTH_MAP[monthKey];
 
     if (monthIndex !== undefined && dayNum >= 1 && dayNum <= 31) {
       let targetYear = currentYear;
-      if (match[4]) {
-        let yParsed = parseInt(match[4], 10);
+      if (match[3]) {
+        let yParsed = parseInt(match[3], 10);
         targetYear = yParsed < 100 ? 2000 + yParsed : yParsed;
       } else if (monthIndex < now.getMonth() || (monthIndex === now.getMonth() && dayNum < now.getDate())) {
         targetYear = currentYear + 1;
@@ -130,8 +137,11 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
   }
 
   // 3. Reverse Month-Day string e.g. "August 6th", "August 9th", "July 30", "Aug 3"
-  const monthDayRegex = /([a-zA-Z]{3,9})\s+\b([1-9]|[12]\d|3[01])\b\s*(st|nd|rd|th)?(?:\s+(\d{2,4}))?/i;
-  const revMatch = dateOnlySnippet.match(monthDayRegex);
+  const monthDayRegex = /([a-zA-Z]{3,9})\s+\b([1-9]|[12]\d|3[01])(?:st|nd|rd|th)?(?:\s+(\d{2,4}))?/i;
+  let revMatch = dateOnlySnippet.match(monthDayRegex);
+  if (!revMatch) {
+    revMatch = dateOnlyFullText.match(monthDayRegex);
+  }
 
   if (revMatch) {
     const monthKey = revMatch[1].toLowerCase();
@@ -140,8 +150,8 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
 
     if (monthIndex !== undefined && dayNum >= 1 && dayNum <= 31) {
       let targetYear = currentYear;
-      if (revMatch[4]) {
-        let yParsed = parseInt(revMatch[4], 10);
+      if (revMatch[3]) {
+        let yParsed = parseInt(revMatch[3], 10);
         targetYear = yParsed < 100 ? 2000 + yParsed : yParsed;
       } else if (monthIndex < now.getMonth() || (monthIndex === now.getMonth() && dayNum < now.getDate())) {
         targetYear = currentYear + 1;
@@ -154,7 +164,11 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
   }
 
   // 4. Explicit European/Indian Date: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY e.g., 30/07/2026, 05-08-2026
-  const ddMmYyyyMatch = dateOnlySnippet.match(/\b([1-9]|[12]\d|3[01])[\/\.-]([1-9]|0[1-9]|1[0-2])[\/\.-](\d{4})\b/);
+  let ddMmYyyyMatch = dateOnlySnippet.match(/\b([1-9]|[12]\d|3[01])[\/\.-]([1-9]|0[1-9]|1[0-2])[\/\.-](\d{4})\b/);
+  if (!ddMmYyyyMatch) {
+    ddMmYyyyMatch = dateOnlyFullText.match(/\b([1-9]|[12]\d|3[01])[\/\.-]([1-9]|0[1-9]|1[0-2])[\/\.-](\d{4})\b/);
+  }
+
   if (ddMmYyyyMatch) {
     const dayNum = parseInt(ddMmYyyyMatch[1], 10);
     const monthNum = parseInt(ddMmYyyyMatch[2], 10);
@@ -166,24 +180,6 @@ export function parseSmartDate(rawString: string | null | undefined, fallbackTex
         return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractedTime || '10:00' };
       }
     }
-  }
-
-  // 5. Explicit ISO Date: YYYY-MM-DD e.g. 2026-08-03
-  const isoMatch = dateOnlySnippet.match(/\b(\d{4})[\/\.-](0[1-9]|1[0-2])[\/\.-]([1-9]|[12]\d|3[01])\b/);
-  if (isoMatch) {
-    const yr = parseInt(isoMatch[1], 10);
-    const mo = parseInt(isoMatch[2], 10);
-    const dy = parseInt(isoMatch[3], 10);
-    const parsedDate = new Date(yr, mo - 1, dy);
-    if (isValid(parsedDate)) {
-      return { date: format(parsedDate, 'yyyy-MM-dd'), time: extractedTime || '10:00' };
-    }
-  }
-
-  // 6. If date not found in local snippet, try parsing the full text snippet recursively ONCE
-  if (fallbackText && rawSnippet !== fullText) {
-    const fallbackParsed = parseSmartDate(fullText);
-    if (fallbackParsed) return fallbackParsed;
   }
 
   // Fallback date: 2 days in future
