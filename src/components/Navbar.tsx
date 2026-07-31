@@ -56,7 +56,6 @@ export const Navbar: React.FC<NavbarProps> = ({
     return 'Good Evening';
   };
 
-  // Natural Language Quick-Add Event Handler
   const handleQuickAddEvent = async () => {
     if (!searchQuery.trim() || !onSaveEvents) return;
     setIsQuickAdding(true);
@@ -72,53 +71,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 glass-panel border-b border-white/10 px-4 lg:px-8 py-3 transition-colors duration-200">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+    <header className="sticky top-0 z-40 glass-panel border-b border-white/10 px-4 lg:px-8 py-3 transition-colors duration-200 bg-slate-950/90 backdrop-blur-md">
+      <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
         
         {/* Logo & Greeting */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Sparkles className="w-5 h-5 text-white animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-                  DeadlineAI
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30">
-                  PRO
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 font-medium">
-                {getGreeting()}, <span className="text-slate-200 font-semibold">{user?.name || 'Guest'}</span> 👋
-              </p>
-            </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+            <Sparkles className="w-5 h-5 text-white animate-pulse" />
           </div>
-
-          <div className="flex items-center gap-2 md:hidden">
-            <button
-              onClick={onOpenChat}
-              className="p-2 rounded-lg bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 transition-all border border-indigo-500/30"
-              title="AI Executive Secretary"
-            >
-              <Bot className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={onOpenSettingsModal}
-              className="p-2 rounded-lg bg-white/5 text-slate-300 hover:bg-white/10 transition-all"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+                DeadlineAI
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono border border-indigo-500/30 font-bold">
+                PRO
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 font-medium">
+              {getGreeting()}, <span className="text-slate-200 font-semibold">{user?.name || 'Guest'}</span> 👋
+            </p>
           </div>
         </div>
 
         {/* View Switcher Tabs */}
-        <nav className="flex items-center gap-1 bg-slate-900/60 p-1.5 rounded-xl border border-white/10 overflow-x-auto max-w-full">
+        <nav className="flex items-center gap-1 bg-slate-900/80 p-1.5 rounded-xl border border-white/10 overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeTab === 'dashboard'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -130,7 +110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => setActiveTab('timeline')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeTab === 'timeline'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -142,7 +122,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeTab === 'calendar'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -154,7 +134,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => setActiveTab('kanban')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeTab === 'kanban'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -166,7 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
               activeTab === 'analytics'
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
@@ -177,9 +157,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </nav>
 
-        {/* Natural Language Quick-Add & Search Bar */}
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <div className="relative flex-1 md:w-72">
+        {/* Search, Action Buttons & User Profile */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          <div className="relative min-w-[200px] sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
@@ -190,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   handleQuickAddEvent();
                 }
               }}
-              placeholder="Search or type 'Remind me to...'"
+              placeholder="Search or 'Remind me...'"
               className="w-full bg-slate-900/90 border border-white/10 rounded-xl pl-9 pr-20 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
             />
             
@@ -206,7 +186,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ) : (
                   <>
                     <Zap className="w-3 h-3 text-amber-400" />
-                    + AI Event
+                    + AI
                   </>
                 )}
               </button>
@@ -215,15 +195,15 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenChat}
-            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shrink-0"
           >
             <Bot className="w-4 h-4 text-indigo-400 animate-pulse" />
-            AI Secretary
+            <span className="hidden sm:inline">AI Secretary</span>
           </button>
 
           <button
             onClick={onOpenSettingsModal}
-            className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 transition-all shrink-0"
             title="Settings & Profile"
           >
             <Settings className="w-4 h-4" />
@@ -231,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
-            className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 transition-all"
+            className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 border border-white/10 transition-all shrink-0"
             title="Toggle theme"
           >
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
@@ -240,21 +220,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           {isAuthenticated ? (
             <button
               onClick={onOpenSettingsModal}
-              className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl bg-slate-900 border border-white/10 hover:border-indigo-500/40 transition-all"
+              className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl bg-slate-900 border border-white/10 hover:border-indigo-500/40 transition-all shrink-0"
             >
               <img
                 src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                 alt={user?.name}
                 className="w-7 h-7 rounded-lg object-cover"
               />
-              <span className="text-xs font-semibold text-slate-200 hidden xl:inline">
+              <span className="text-xs font-semibold text-slate-200 hidden lg:inline">
                 {user?.name.split(' ')[0]}
               </span>
             </button>
           ) : (
             <button
               onClick={onOpenAuthModal}
-              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md"
+              className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all shadow-md shrink-0"
             >
               Sign In
             </button>
@@ -262,10 +242,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <button
             onClick={onOpenAddModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-semibold text-xs transition-all shadow-lg shadow-indigo-600/30 shrink-0"
           >
             <Plus className="w-4 h-4" />
-            Add Notice
+            <span className="hidden sm:inline">Add Notice</span>
           </button>
         </div>
 

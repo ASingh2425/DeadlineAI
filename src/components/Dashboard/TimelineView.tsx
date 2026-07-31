@@ -12,7 +12,7 @@ import {
   ArrowUpDown,
   CalendarCheck
 } from 'lucide-react';
-import { format, parseISO, isToday, isTomorrow, isThisWeek, isSameMonth, differenceInDays, addWeeks, isSameWeek } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isThisWeek, isSameMonth, differenceInDays, addWeeks, isSameWeek, startOfDay } from 'date-fns';
 
 interface TimelineViewProps {
   events: NoticeEvent[];
@@ -47,6 +47,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   );
 
   const now = new Date();
+  const startOfToday = startOfDay(now);
 
   const todayList = filteredEvents.filter(e => isToday(parseISO(e.date)));
   const tomorrowList = filteredEvents.filter(e => isTomorrow(parseISO(e.date)));
@@ -86,7 +87,8 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   };
 
   const renderEventItem = (event: NoticeEvent) => {
-    const daysLeft = differenceInDays(parseISO(event.date), now);
+    const eventDateObj = parseISO(event.date);
+    const daysLeft = differenceInDays(startOfDay(eventDateObj), startOfToday);
 
     return (
       <div
@@ -118,13 +120,17 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               </span>
               {getPriorityBadge(event.priority)}
 
-              {daysLeft === 0 ? (
+              {isToday(eventDateObj) ? (
                 <span className="text-[10px] font-bold text-rose-400 bg-rose-950/60 px-2 py-0.5 rounded font-mono">
                   DUE TODAY
                 </span>
-              ) : daysLeft > 0 ? (
+              ) : isTomorrow(eventDateObj) ? (
+                <span className="text-[10px] font-bold text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded font-mono">
+                  DUE TOMORROW
+                </span>
+              ) : daysLeft > 1 ? (
                 <span className="text-[10px] font-semibold text-slate-400 font-mono">
-                  In {daysLeft} day{daysLeft > 1 ? 's' : ''}
+                  In {daysLeft} days
                 </span>
               ) : null}
             </div>
@@ -141,7 +147,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             <div className="flex items-center gap-4 text-xs text-slate-400 mt-2 flex-wrap">
               <div className="flex items-center gap-1 font-mono font-bold text-slate-200">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{format(parseISO(event.date), 'EEEE, MMM d, yyyy')} {event.time ? `at ${event.time}` : ''}</span>
+                <span>{format(eventDateObj, 'EEEE, MMM d, yyyy')} {event.time ? `at ${event.time}` : ''}</span>
               </div>
 
               {event.company && (
@@ -209,10 +215,10 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   return (
     <div className="space-y-6">
       
-      {/* Controls Bar */}
-      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-white/10">
+      {/* Filter & Sort Controls Bar */}
+      <div className="glass-panel p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/10 shadow-lg">
         <div className="flex items-center gap-2 flex-wrap">
-          <Filter className="w-4 h-4 text-indigo-400" />
+          <Filter className="w-4 h-4 text-indigo-400 shrink-0" />
           <span className="text-xs font-bold text-slate-300 uppercase tracking-wider mr-1">Category:</span>
           {categories.map(cat => (
             <button
@@ -229,7 +235,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-white/5">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Priority:</span>
             {priorities.map(prio => (
@@ -249,7 +255,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 
           <button
             onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all shrink-0"
             title="Toggle Sort Order"
           >
             <ArrowUpDown className="w-3.5 h-3.5" />
@@ -280,7 +286,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
               <div className="flex items-center gap-2 mb-4">
                 <CalendarCheck className="w-4 h-4 text-emerald-400" />
                 <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                  Master Chronological Deadline Schedule ({filteredEvents.length} Events)
+                  Master Chronological Schedule ({filteredEvents.length} Events)
                 </h3>
               </div>
               <div className="space-y-2">
