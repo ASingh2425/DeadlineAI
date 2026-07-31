@@ -8,7 +8,9 @@ import {
   Building2, 
   ExternalLink, 
   ChevronRight,
-  Filter
+  Filter,
+  ArrowUpDown,
+  CalendarCheck
 } from 'lucide-react';
 import { format, parseISO, isToday, isTomorrow, isThisWeek, isSameMonth, differenceInDays, addWeeks, isSameWeek } from 'date-fns';
 
@@ -25,12 +27,24 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedPriority, setSelectedPriority] = useState<string>('All');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  const filteredEvents = events.filter(e => {
-    if (selectedCategory !== 'All' && e.type !== selectedCategory) return false;
-    if (selectedPriority !== 'All' && e.priority !== selectedPriority) return false;
-    return true;
-  });
+  // Strict Chronological Sorting Function (date YYYY-MM-DD + time HH:mm)
+  const sortEvents = (items: NoticeEvent[]) => {
+    return [...items].sort((a, b) => {
+      const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
+      const timeB = new Date(`${b.date}T${b.time || '00:00'}`).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+  };
+
+  const filteredEvents = sortEvents(
+    events.filter(e => {
+      if (selectedCategory !== 'All' && e.type !== selectedCategory) return false;
+      if (selectedPriority !== 'All' && e.priority !== selectedPriority) return false;
+      return true;
+    })
+  );
 
   const now = new Date();
 
@@ -47,6 +61,12 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const remainingMonthList = filteredEvents.filter(e => {
     const d = parseISO(e.date);
     return isSameMonth(d, now) && !isToday(d) && !isTomorrow(d) && !isThisWeek(d, { weekStartsOn: 1 }) && !isSameWeek(addWeeks(now, 1), d, { weekStartsOn: 1 });
+  });
+  
+  // Future deadlines beyond current month
+  const futureDeadlinesList = filteredEvents.filter(e => {
+    const d = parseISO(e.date);
+    return !isToday(d) && !isTomorrow(d) && !isThisWeek(d, { weekStartsOn: 1 }) && !isSameWeek(addWeeks(now, 1), d, { weekStartsOn: 1 }) && !isSameMonth(d, now);
   });
 
   const categories = ['All', 'Placement', 'Internship', 'Academics', 'Exam', 'Assignment', 'Workshop', 'Hackathon', 'Fee Payment'];
@@ -119,9 +139,9 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             </h4>
 
             <div className="flex items-center gap-4 text-xs text-slate-400 mt-2 flex-wrap">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 font-mono font-bold text-slate-200">
                 <Clock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{format(parseISO(event.date), 'MMM d, yyyy')} {event.time ? `at ${event.time}` : ''}</span>
+                <span>{format(parseISO(event.date), 'EEEE, MMM d, yyyy')} {event.time ? `at ${event.time}` : ''}</span>
               </div>
 
               {event.company && (
@@ -189,10 +209,11 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   return (
     <div className="space-y-6">
       
+      {/* Controls Bar */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-white/10">
         <div className="flex items-center gap-2 flex-wrap">
           <Filter className="w-4 h-4 text-indigo-400" />
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider mr-2">Category:</span>
+          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider mr-1">Category:</span>
           {categories.map(cat => (
             <button
               key={cat}
@@ -208,30 +229,38 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Priority:</span>
-          {priorities.map(prio => (
-            <button
-              key={prio}
-              onClick={() => setSelectedPriority(prio)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                selectedPriority === prio
-                  ? 'bg-purple-600 text-white font-semibold'
-                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-white/5'
-              }`}
-            >
-              {prio}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Priority:</span>
+            {priorities.map(prio => (
+              <button
+                key={prio}
+                onClick={() => setSelectedPriority(prio)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                  selectedPriority === prio
+                    ? 'bg-purple-600 text-white font-semibold'
+                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-white/5'
+                }`}
+              >
+                {prio}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-bold flex items-center gap-1.5 transition-all"
+            title="Toggle Sort Order"
+          >
+            <ArrowUpDown className="w-3.5 h-3.5" />
+            {sortOrder === 'asc' ? 'Earliest First' : 'Latest First'}
+          </button>
         </div>
       </div>
 
+      {/* Chronological Sections */}
       <div className="space-y-8">
-        {todayList.length === 0 && 
-         tomorrowList.length === 0 && 
-         thisWeekList.length === 0 && 
-         nextWeekList.length === 0 && 
-         remainingMonthList.length === 0 ? (
+        {filteredEvents.length === 0 ? (
           <div className="glass-panel p-12 text-center rounded-2xl">
             <Clock className="w-12 h-12 text-slate-500 mx-auto mb-3" />
             <h3 className="text-base font-bold text-slate-300">No events found matching your filter</h3>
@@ -243,7 +272,21 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             {renderSection("Tomorrow", tomorrowList, "amber")}
             {renderSection("This Week", thisWeekList, "indigo")}
             {renderSection("Next Week", nextWeekList, "blue")}
-            {renderSection("Later This Month", remainingMonthList, "slate")}
+            {renderSection("Later This Month", remainingMonthList, "purple")}
+            {renderSection("Upcoming Deadlines (Future Months)", futureDeadlinesList, "emerald")}
+
+            {/* Master Chronological Event Log */}
+            <div className="pt-6 border-t border-white/10">
+              <div className="flex items-center gap-2 mb-4">
+                <CalendarCheck className="w-4 h-4 text-emerald-400" />
+                <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
+                  Master Chronological Deadline Schedule ({filteredEvents.length} Events)
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {filteredEvents.map(renderEventItem)}
+              </div>
+            </div>
           </>
         )}
       </div>

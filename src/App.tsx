@@ -14,6 +14,15 @@ import { AuthModal } from './components/Auth/AuthModal';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import confetti from 'canvas-confetti';
 
+// Chronological sorting utility
+function sortEventsChronologically(items: NoticeEvent[]): NoticeEvent[] {
+  return [...items].sort((a, b) => {
+    const timeA = new Date(`${a.date}T${a.time || '00:00'}`).getTime();
+    const timeB = new Date(`${b.date}T${b.time || '00:00'}`).getTime();
+    return timeA - timeB;
+  });
+}
+
 function MainAppContent() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'timeline' | 'calendar' | 'kanban' | 'analytics'>('dashboard');
@@ -22,7 +31,7 @@ function MainAppContent() {
 
   const [events, setEvents] = useState<NoticeEvent[]>(() => {
     const saved = localStorage.getItem(userStorageKey);
-    return saved ? JSON.parse(saved) : [];
+    return saved ? sortEventsChronologically(JSON.parse(saved)) : [];
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +55,7 @@ function MainAppContent() {
   }, [isDarkMode]);
 
   const handleSaveEvents = (newEvents: NoticeEvent[]) => {
-    setEvents(prev => [...newEvents, ...prev]);
+    setEvents(prev => sortEventsChronologically([...newEvents, ...prev]));
     confetti({
       particleCount: 80,
       spread: 70,
@@ -100,17 +109,19 @@ function MainAppContent() {
     }
   };
 
-  const filteredEvents = events.filter(e => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      e.title.toLowerCase().includes(q) ||
-      e.type.toLowerCase().includes(q) ||
-      (e.company && e.company.toLowerCase().includes(q)) ||
-      (e.description && e.description.toLowerCase().includes(q)) ||
-      (e.location && e.location.toLowerCase().includes(q))
-    );
-  });
+  const filteredEvents = sortEventsChronologically(
+    events.filter(e => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        e.title.toLowerCase().includes(q) ||
+        e.type.toLowerCase().includes(q) ||
+        (e.company && e.company.toLowerCase().includes(q)) ||
+        (e.description && e.description.toLowerCase().includes(q)) ||
+        (e.location && e.location.toLowerCase().includes(q))
+      );
+    })
+  );
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-main)] transition-colors duration-200 pb-16">
@@ -221,7 +232,12 @@ function MainAppContent() {
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         events={events}
-        setEvents={setEvents}
+        setEvents={(updater) => {
+          setEvents(prev => {
+            const next = typeof updater === 'function' ? updater(prev) : updater;
+            return sortEventsChronologically(next);
+          });
+        }}
       />
 
     </div>
