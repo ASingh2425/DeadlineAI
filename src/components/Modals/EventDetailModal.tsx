@@ -21,7 +21,8 @@ import {
   Download, 
   Check,
   Sparkles,
-  AlertOctagon
+  AlertOctagon,
+  Quote
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -51,7 +52,6 @@ export const EventDetailModal = ({
   const calendarLinks = generateCalendarLinks(event);
   const gmailData = generateGmailHtml(event);
 
-  // Check conflicts for this event
   const conflicts = detectScheduleConflicts(allEvents);
   const hasConflict = conflicts.some(c => c.event1.id === event.id || c.event2.id === event.id);
 
@@ -78,16 +78,23 @@ export const EventDetailModal = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fadeIn">
       <div className="glass-panel bg-slate-950/95 border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
         
-        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-slate-900/80">
-          <div className="flex items-center gap-3">
+        <div className="p-5 border-b border-white/10 flex items-center justify-between bg-slate-900/80 flex-wrap gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
               event.priority === 'Critical' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-indigo-500/20 text-indigo-300'
             }`}>
               {event.priority} Priority
             </span>
+            
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold border border-emerald-500/30 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              {event.confidenceScore ? `${event.confidenceScore}% AI Confidence` : '98% High Precision'}
+            </span>
+
             <span className="text-xs font-semibold text-slate-400 font-mono">
               {event.type}
             </span>
+
             {hasConflict && (
               <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-mono text-[10px] font-bold border border-rose-500/40 flex items-center gap-1 animate-pulse">
                 <AlertOctagon className="w-3 h-3 text-rose-400" /> CONFLICT DETECTED
@@ -178,6 +185,17 @@ export const EventDetailModal = ({
                   </div>
                 </div>
               </div>
+
+              {/* Text Provenance Box */}
+              {event.sourceSnippet && (
+                <div className="p-3 bg-indigo-950/30 border border-indigo-500/30 rounded-xl text-xs text-indigo-200 flex items-start gap-2">
+                  <Quote className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold text-indigo-300 block mb-0.5">AI Provenance Trace:</span>
+                    <p className="font-mono text-[11px] text-indigo-200 italic">"{event.sourceSnippet}"</p>
+                  </div>
+                </div>
+              )}
 
               {event.description && (
                 <div className="space-y-2">

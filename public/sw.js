@@ -1,38 +1,22 @@
-const CACHE_NAME = 'deadlineai-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+// DeadlineAI Service Worker for Web Push Notifications
+self.addEventListener('push', function(event) {
+  const data = event.data ? event.data.json() : { title: 'DeadlineAI Reminder', body: 'You have an upcoming event deadline!' };
+  const options = {
+    body: data.body,
+    icon: '/icon.png',
+    badge: '/badge.png',
+    vibrate: [200, 100, 200],
+    data: { url: data.url || '/' }
+  };
 
-self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    self.registration.showNotification(data.title, options)
   );
-  self.skipWaiting();
 });
 
-self.addEventListener('activate', (event) => {
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    clients.openWindow(event.notification.data.url)
   );
 });

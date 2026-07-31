@@ -45,6 +45,8 @@ export interface NoticeEvent {
   createdAt: string;
   sourceNoticeId?: string;
   sourceType?: 'whatsapp' | 'pdf' | 'screenshot' | 'email' | 'manual';
+  confidenceScore?: number; // e.g. 98 (% score)
+  sourceSnippet?: string; // Exact sentence from notice text
 }
 
 export interface NoticeInput {
